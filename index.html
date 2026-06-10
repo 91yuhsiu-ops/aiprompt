@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Prompt 智能寶庫</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for better styling -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+        /* Custom scrollbar for prompt textarea inside card */
+        .prompt-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .prompt-content::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 4px;
+        }
+        .prompt-content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .prompt-content::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased py-8 px-4 sm:px-6 lg:px-8">
+
+    <!-- Container -->
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center gap-2 mb-3">
+                <span>🚀</span> AI Prompt 智能寶庫
+            </h1>
+            <a href="https://docs.google.com/spreadsheets/d/1LoIEigl_EWyhr1hyQlP1rpAkmfPwrWdLD95BhSnXfG8/edit?usp=sharing" 
+               target="_blank" 
+               class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-indigo-600 transition duration-200 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full shadow-sm hover:shadow-md">
+                <span>📂</span> 開啟原始資料 Google Sheet <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-70"></i>
+            </a>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="max-w-2xl mx-auto mb-8 relative">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i class="fa-solid fa-magnifying-glass text-slate-400 text-lg"></i>
+            </div>
+            <input type="text" 
+                   id="searchInput" 
+                   placeholder="搜尋提示詞..." 
+                   class="w-full pl-12 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base transition-all duration-200"
+            >
+            <button id="clearSearch" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 hidden">
+                <i class="fa-solid fa-circle-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Category Tags -->
+        <div class="flex flex-wrap justify-center gap-2.5 max-w-5xl mx-auto mb-12" id="categoryContainer">
+            <!-- Loading categories... -->
+            <button class="px-4 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white shadow-sm transition duration-200">
+                全部
+            </button>
+        </div>
+
+        <!-- Section Title: AI 協思 -->
+        <div class="max-w-7xl mx-auto mb-6 flex items-center justify-between border-b border-slate-200 pb-3">
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <span>🧠</span> AI 協思
+            </h2>
+            <span id="cardCount" class="text-sm bg-white/60 backdrop-blur px-3 py-1 rounded-full text-slate-600 font-medium shadow-sm">
+                載入中...
+            </span>
+        </div>
+
+        <!-- Loading State Indicator -->
+        <div id="loadingIndicator" class="flex flex-col items-center justify-center py-20 text-slate-500">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+            <p class="text-sm font-medium">正在載入雲端資料寶庫...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-slate-500 bg-white/50 backdrop-blur rounded-2xl border border-dashed border-slate-300">
+            <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-60"></i>
+            <p class="text-base font-semibold text-slate-600">找不到相符的提示詞</p>
+            <p class="text-xs text-slate-400 mt-1">請試試其他關鍵字或分類標籤</p>
+        </div>
+
+        <!-- Main Card Grid -->
+        <main class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="cardGrid">
+            <!-- Cards will be dynamically rendered here -->
+        </main>
+
+    </div>
+
+    <!-- Toast Notification (Replaces Browser Alerts) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-10 opacity-0 pointer-events-none transition-all duration-300 ease-out flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span class="text-sm font-medium">已成功複製到剪貼簿！</span>
+    </div>
+
+    <!-- Script Area -->
+    <script>
+        // High-quality local fallback data to guarantee layout works if Google Sheet has CORS or connectivity issues.
+        const fallbackPrompts = [
+            {
+                category: "內容創作",
+                title: "意義單詞",
+                content: "將文章的重點部分，尋找一個代表性英文字母，並使這些字母的首字組合成一個具有意義的單詞（如「VISION」）」"
+            },
+            {
+                category: "內容創作",
+                title: "品牌名稱",
+                content: "完成 ChatGPT 角色定義後，依據\"品牌定義\"與\"產品介紹\"發想5個產品名稱與標題（口號）。\n- 提示詞指令：描述品牌與產品，請列出 數字 個產品名稱與行銷標題建議。(*品牌定義*描述、*產品介紹*描述)\n- Prompt 範例：- 我推出一個運動鞋品牌，今年會銷售一款新型跑步鞋品牌，今年會銷售一款新型跑步..."
+            },
+            {
+                category: "筆記精煉",
+                title: "長篇文章",
+                content: "為這一篇長篇文章，進行以下四個步驟，每一個步驟都提供給文章與標示出來\n第1、請為這篇長文件生成一份簡短摘要。\n第2、請基於上一個摘要，不要遺漏任何專有名詞、數字或關鍵人物，重新生成一份摘要。\n第3、現在，請將摘要中每一句話都濃縮成更簡潔的表達，同時保留..."
+            },
+            {
+                category: "筆記精煉",
+                title: "書籍精煉",
+                content: "請對 @[檔名]\n啟動【終極煉金管線】，一次執行四步驟整合：\n第一步：全域架構導航 (Stage 01)\n執行 stage-1-navigator，對精煉稿進行深度掃描，產出知識地圖與反直覺預警。\n存檔：01_Map_[主題簡稱].md。\n第二步：價值 DNA 診斷 (Stage 02)"
+            },
+            {
+                category: "筆記精煉",
+                title: "書籍精煉",
+                content: "請針對讀書會導讀文稿，提煉出核心金句與理論骨幹，用結構清晰的條列式大綱與重點提示標明。在保留原意和核心推論的前提下，幫助讀者在三分鐘內掌握該篇幅的商業思維精髓與核心策略方案。"
+            },
+            {
+                category: "筆記精煉",
+                title: "提取練習",
+                content: "我剛讀完了關於 [填入具體段落標題] 的內容。現在請幫我進行深度研磨：\n\n1-底層邏輯拷問：針對這段內容的「運作原理」向我提問，測試我是否理解了「為什麼有效」，而非只是記住步驟。\n\n2-環境轉化：如果這段概念有複雜..."
+            },
+            {
+                category: "內容創作",
+                title: "影片清理",
+                content: "你的角色是一位「逐字稿校對員」，不是編輯。\n任務：\n1-僅刪除口語填充詞、重複說法、明顯冗詞\n2-不得改寫句型、不得改變原意、不得加入新解釋\n規則：\n1-原句順序必須完全一致\n2-若刪除任何詞語，需確保前後與..."
+            },
+            {
+                category: "內容創作",
+                title: "影片清理",
+                content: "你的角色是一位「內容結構化整理員」，不是編輯、不是評論者。\n\n我會提供一段約 4000 字的影片文字內容，請你在完全保留原作者語意與立場的前提下，進行「保留語意的濃縮」，將內容壓縮至約 2000 字。全文用繁體中文呈現。"
+            }
+        ];
+
+        // Global State
+        let allPrompts = [];
+        let selectedCategory = "全部";
+        let searchQuery = "";
+
+        // Google Sheet CSV fetch url configuration
+        const sheetId = "1LoIEigl_EWyhr1hyQlP1rpAkmfPwrWdLD95BhSnXfG8";
+        // Fetch raw visualization JSON format which is highly structured
+        const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+
+        // Load Prompts Data
+        async function fetchPrompts() {
+            try {
+                // Try fetching from Google Sheet Visualization API
+                const response = await fetch(sheetUrl);
+                if (!response.ok) throw new Error("網路連線不正常");
+                const text = await response.text();
+                
+                // Parse the response which is in format: google.visualization.Query.setResponse({...})
+                const jsonStart = text.indexOf('{');
+                const jsonEnd = text.lastIndexOf('}') + 1;
+                const jsonString = text.substring(jsonStart, jsonEnd);
+                const data = JSON.parse(jsonString);
+
+                const rows = data.table.rows;
+                const cols = data.table.cols;
+
+                // Dynamically map column indexes based on header labels
+                let categoryIdx = 0;
+                let titleIdx = 1;
+                let contentIdx = 2;
+
+                cols.forEach((col, idx) => {
+                    const label = col.label ? col.label.trim() : "";
+                    if (label.includes("分類") || label.includes("類別") || label.toLowerCase().includes("category")) {
+                        categoryIdx = idx;
+                    } else if (label.includes("標題") || label.includes("名稱") || label.toLowerCase().includes("title") || label.toLowerCase().includes("name")) {
+                        titleIdx = idx;
+                    } else if (label.includes("提示詞") || label.includes("內容") || label.toLowerCase().includes("prompt") || label.toLowerCase().includes("content")) {
+                        contentIdx = idx;
+                    }
+                });
+
+                const parsedPrompts = rows.map(row => {
+                    const cells = row.c;
+                    return {
+                        category: cells[categoryIdx] && cells[categoryIdx].v ? String(cells[categoryIdx].v).trim() : "未分類",
+                        title: cells[titleIdx] && cells[titleIdx].v ? String(cells[titleIdx].v).trim() : "無標題",
+                        content: cells[contentIdx] && cells[contentIdx].v ? String(cells[contentIdx].v).trim() : ""
+                    };
+                }).filter(p => p.content.length > 0); // Ignore fully empty cards
+
+                if (parsedPrompts.length > 0) {
+                    allPrompts = parsedPrompts;
+                } else {
+                    allPrompts = fallbackPrompts;
+                }
+            } catch (err) {
+                console.warn("無法讀取雲端資料，啟動本地備份載入機制。 錯誤訊息:", err);
+                allPrompts = fallbackPrompts;
+            } finally {
+                // Remove loader and render
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                initCategories();
+                renderCards();
+            }
+        }
+
+        // Initialize unique category tabs
+        function initCategories() {
+            const categories = ["全部"];
+            allPrompts.forEach(p => {
+                if (p.category && !categories.includes(p.category)) {
+                    categories.push(p.category);
+                }
+            });
+
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = "";
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.innerText = cat;
+                btn.className = `px-4.5 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
+                    cat === selectedCategory 
+                    ? "bg-indigo-600 text-white shadow-md transform scale-105" 
+                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/60 shadow-sm"
+                }`;
+                btn.addEventListener('click', () => {
+                    selectedCategory = cat;
+                    updateActiveCategoryButton();
+                    renderCards();
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        // Sync visual UI state of Category Buttons
+        function updateActiveCategoryButton() {
+            const buttons = document.getElementById('categoryContainer').querySelectorAll('button');
+            buttons.forEach(btn => {
+                if (btn.innerText === selectedCategory) {
+                    btn.className = "px-4.5 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white shadow-md transform scale-105 transition-all duration-200 cursor-pointer";
+                } else {
+                    btn.className = "px-4.5 py-2 rounded-full text-sm font-medium bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/60 shadow-sm transition-all duration-200 cursor-pointer";
+                }
+            });
+        }
+
+        // Display custom toast feedback
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-10', 'pointer-events-none');
+            }, 2500);
+        }
+
+        // Copy content function using robust backup methods
+        function copyToClipboard(text, buttonElement) {
+            // Backup selection range for iOS Safari/iframe support
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    triggerButtonSuccess(buttonElement);
+                }).catch(() => {
+                    fallbackCopy(text, buttonElement);
+                });
+            } else {
+                fallbackCopy(text, buttonElement);
+            }
+        }
+
+        function fallbackCopy(text, buttonElement) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                triggerButtonSuccess(buttonElement);
+            } catch (err) {
+                console.error("無法複製文字", err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function triggerButtonSuccess(btn) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-check mr-1.5 animate-bounce"></i> 已複製!`;
+            btn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+            btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            
+            showToast();
+
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                btn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            }, 2000);
+        }
+
+        // Render main cards grid
+        function renderCards() {
+            const grid = document.getElementById('cardGrid');
+            const emptyState = document.getElementById('emptyState');
+            const cardCount = document.getElementById('cardCount');
+            
+            // Filter prompts based on current category and search query
+            const filtered = allPrompts.filter(item => {
+                const matchesCategory = selectedCategory === "全部" || item.category === selectedCategory;
+                const matchesSearch = searchQuery === "" || 
+                    item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    item.category.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCategory && matchesSearch;
+            });
+
+            cardCount.innerText = `共 ${filtered.length} 筆提示詞`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = "";
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            } else {
+                emptyState.classList.remove('flex');
+                emptyState.classList.add('hidden');
+            }
+
+            grid.innerHTML = "";
+            filtered.forEach(item => {
+                // Outer card container
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden relative group";
+                
+                // Top colorful accent border
+                card.innerHTML = `
+                    <div class="h-2.5 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
+                    <div class="p-6 flex-1 flex flex-col">
+                        
+                        <!-- Card Header -->
+                        <div class="flex items-start justify-between gap-2 mb-3">
+                            <span class="inline-block px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-sky-600 border border-sky-100">
+                                ${item.category}
+                            </span>
+                        </div>
+
+                        <!-- Card Title -->
+                        <h3 class="text-lg font-bold text-slate-800 mb-3 group-hover:text-indigo-600 transition-colors duration-200">
+                            ${item.title}
+                        </h3>
+
+                        <!-- Card Body Content (Scrollable textarea container) -->
+                        <div class="prompt-content bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm text-slate-600 leading-relaxed overflow-y-auto max-h-[160px] min-h-[140px] flex-1 select-all break-words whitespace-pre-wrap">
+                            ${item.content}
+                        </div>
+                    </div>
+
+                    <!-- Footer Action Button -->
+                    <div class="p-5 bg-slate-50/50 border-t border-slate-100">
+                        <button class="copy-btn w-full py-2.5 px-4 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-[0.98]">
+                            <i class="fa-regular fa-copy"></i> 複製 Prompt
+                        </button>
+                    </div>
+                `;
+
+                // Wire up copy function
+                const copyBtn = card.querySelector('.copy-btn');
+                copyBtn.addEventListener('click', () => {
+                    copyToClipboard(item.content, copyBtn);
+                });
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Setup Interactive Filter and Search Handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            const clearSearch = document.getElementById('clearSearch');
+
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value.trim();
+                
+                if (searchQuery.length > 0) {
+                    clearSearch.classList.remove('hidden');
+                } else {
+                    clearSearch.classList.add('hidden');
+                }
+                renderCards();
+            });
+
+            clearSearch.addEventListener('click', () => {
+                searchInput.value = "";
+                searchQuery = "";
+                clearSearch.classList.add('hidden');
+                searchInput.focus();
+                renderCards();
+            });
+
+            // Start loading process
+            fetchPrompts();
+        });
+    </script>
+
+</body>
+</html>
